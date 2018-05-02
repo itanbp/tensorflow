@@ -27,10 +27,9 @@ import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.media.ImageReader.OnImageAvailableListener;
 import android.os.SystemClock;
+import android.util.Log;
 import android.util.Size;
 import android.util.TypedValue;
-import android.view.Display;
-import android.view.Surface;
 import android.widget.Toast;
 
 import java.io.IOException;
@@ -43,7 +42,6 @@ import org.tensorflow.demo.env.BorderedText;
 import org.tensorflow.demo.env.ImageUtils;
 import org.tensorflow.demo.env.Logger;
 import org.tensorflow.demo.tracking.MultiBoxTracker;
-import org.tensorflow.demo.R; // Explicit import needed for internal Google builds.
 
 /**
  * An activity that uses a TensorFlowMultiBoxDetector and ObjectTracker to detect and then track
@@ -121,6 +119,8 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
     private byte[] luminanceCopy;
 
     private BorderedText borderedText;
+
+    private long mDetectionIntervalTime = -1;
 
     @Override
     public void onPreviewSizeChosen(final Size size, final int rotation) {
@@ -290,7 +290,24 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
                     public void run() {
                         LOGGER.i("Running detection on image " + currTimestamp);
                         final long startTime = SystemClock.uptimeMillis();
+
+
+                        if (mDetectionIntervalTime == -1) {
+                            Log.v("TensorTime", "first time");
+                        } else {
+                            long current = System.currentTimeMillis();
+                            Log.v("TensorTime", "mDetectionIntervalTime " + (current - mDetectionIntervalTime));
+                        }
+                        mDetectionIntervalTime = System.currentTimeMillis();
+
+
+
+                        long start = System.currentTimeMillis();
                         final List<Classifier.Recognition> results = detector.recognizeImage(croppedBitmap);
+                        long end = System.currentTimeMillis();
+                        Log.v("TensorTime", "detector.recognizeImage() " + (end - start));
+
+
                         lastProcessingTimeMs = SystemClock.uptimeMillis() - startTime;
 
                         cropCopyBitmap = Bitmap.createBitmap(croppedBitmap);
@@ -327,8 +344,13 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
                             }
                         }
 
+
+                        start = System.currentTimeMillis();
                         tracker.trackResults(mappedRecognitions, luminanceCopy, currTimestamp);
                         trackingOverlay.postInvalidate();
+                        end = System.currentTimeMillis();
+                        Log.v("TensorTime", "tracker.trackResults() " + (end - start));
+
 
                         requestRender();
                         computingDetection = false;
